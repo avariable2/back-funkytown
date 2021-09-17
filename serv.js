@@ -19,21 +19,31 @@ var id_first;
 var id_second;
 
 var turn_nb = 0;
-var has_played_dude=false;
+var has_played_dude = false;
 var has_played_elf = false;
 var move_dude = 'none';
 var move_elf = 'none';
+var nomDejaDonné = "JB";
 
-    
-/*function get_ponged() {
-  clearTimeout(tm);
-}*/
+function trouver_nom() {
+  if(nomDejaDonné == "JA") {
+    nomDejaDonné = "JB";
+    return "JB";
+  }
+  else {
+    nomDejaDonné = "JA";
+    return "JA";
+  }
+}
 
 web_socket.on('connection', (ws) => {
   console.log('Connected : '+ web_socket.clients.size);
 
   // Definition aléatoire d'un nom
-  ws.nom = web_socket.clients.size < 2 ? "A" : "T";
+  ws.nom = trouver_nom();
+
+  // Envoie du nom attribuer par le serveur au joueur
+  ws.send(ws.nom);
 
   // Fonction qui permet de refresh la valeur isAlive si la fonction est appeler
   function raquette() {
@@ -48,9 +58,20 @@ web_socket.on('connection', (ws) => {
   // Si la connection est coupé
   ws.on('close', () => { console.log("Quelqu'un est partie =(")})
 
-  if (web_socket.clients.size < 100) {
+  ws.on('message',  (message) => {
+    console.log(ws.nom + ' : '+ message);
+    var donnee = JSON.parse(message);
+    //console.log(donnee);
+    web_socket.clients.forEach( (client) => {
+      if (ws !== client && client.readyState === WebSocket.OPEN) { // Si le ws n'est pas celui actuel alors 
+        // on lui envoie ce que l'autre wd a jouer
+        client.send( JSON.stringify(donnee) );
+      }
+    })
+  });
+
+  /*if (web_socket.clients.size < 100) {
     ws.send('Welcome '+ ws.nom +'. Waiting for a second player...');
-    console.log('sending to dude');
 
     ws.on('message',  (message) => {
       console.log(ws.nom + ' : '+ message);
@@ -77,7 +98,7 @@ web_socket.on('connection', (ws) => {
 
         });
 
-    } else if (web_socket.clients.size == 2){
+  } else if (web_socket.clients.size == 2){
         //ws.nom = 'Elf';
         // Send a message
         
@@ -114,8 +135,11 @@ web_socket.on('connection', (ws) => {
               });
           }
         });
-      }
+  }*/
+
 });
+
+
 
 
 // Interval qui tourne en boucle et qui verifie que toute les clients sont encore la
