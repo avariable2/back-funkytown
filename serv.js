@@ -33,9 +33,22 @@ console.log('starting serv');
 
 
 var turn_nb = 0;
+var has_played_dude = false;
+var has_played_elf = false;
 var move_dude = 'none';
 var move_elf = 'none';
-var list_client_info=[];
+var nomDejaDonné = "JB";
+
+function trouver_nom() {
+  if(nomDejaDonné == "JA") {
+    nomDejaDonné = "JB";
+    return "JB";
+  }
+  else {
+    nomDejaDonné = "JA";
+    return "JA";
+  }
+}
 
 web_socket.on('connection', (ws) => {
   console.log('Connected : ' + web_socket.clients.size);
@@ -52,6 +65,10 @@ web_socket.on('connection', (ws) => {
   ws.nom = web_socket.clients.size < 2 ? "A" : "T";
   ws.action = 'none';
   ws.has_played = false;
+  ws.nom = trouver_nom();
+
+  // Envoie du nom attribuer par le serveur au joueur
+  ws.send(ws.nom);
 
   // Fonction qui permet de refresh la valeur isAlive si la fonction est appeler
   function raquette() {
@@ -72,50 +89,88 @@ web_socket.on('connection', (ws) => {
   
   })
 
-  if (web_socket.clients.size == 1) {
-    ws.send('Welcome ' + ws.nom + '. Waiting for a second player...');
-    console.log('sending to dude');
-
-    ws.on('message', (message) => {
-
-      console.log(ws.nom + ' : ' + message);
-
-      msg = JSON.parse(message);
-      if (msg.contains('code')) {
-        switch (msg['code']) {
-
-          case 'chat':
-            // send msg['message'] to all
-            break;
-          case 'action':
-            ws.action = msg['action']; // bon tout s'appelle pareil mais np
-            // faire des array avec les noms des clients, les actions, et autres infos
-            ws.has_played = true;
-            break;
-
-        }
+  ws.on('message',  (message) => {
+    console.log(ws.nom + ' : '+ message);
+    var donnee = JSON.parse(message);
+    //console.log(donnee);
+    web_socket.clients.forEach( (client) => {
+      if (ws !== client && client.readyState === WebSocket.OPEN) { // Si le ws n'est pas celui actuel alors 
+        // on lui envoie ce que l'autre wd a jouer
+        client.send( JSON.stringify(donnee) );
       }
+    })
+  });
 
-      web_socket.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify({ 'turn': turn_nb, 'dude_mov': move_dude, 'elf_mov': move_elf }));
-        }
-      })
+  /*if (web_socket.clients.size < 100) {
+    ws.send('Welcome '+ ws.nom +'. Waiting for a second player...');
 
+    ws.on('message',  (message) => {
+      console.log(ws.nom + ' : '+ message);
 
-    });
-
-  } else if (web_socket.clients.size == 2) {
-    //ws.nom = 'Elf';
-    // Send a message
-
-    ws.send('Elf');
-    ws.send('Welcome ' + ws.nom);
-    console.log('sending to elf');
+          if (message.includes("mov:")){
+            move_dude = message;
+            has_played_dude = true;
+          }
 
 
-  }
+          if (has_played_dude && has_played_elf){
+           
+            has_played_dude = false;
+            has_played_elf = false;
+
+            wweb_socket.clients.forEach( (client) => {
+              if (client.readyState === WebSocket.OPEN) {
+                client.send({'turn': turn_nb, 'dude_mov': move_dude, 'elf_mov': move_elf});
+              }
+              });
+
+          }
+
+
+        });
+
+  } else if (web_socket.clients.size == 2){
+        //ws.nom = 'Elf';
+        // Send a message
+        
+        ws.send('Elf');
+        ws.send('Welcome '+ ws.nom);
+        console.log('sending to elf');
+
+        ws.on('message',  (message) => {
+          console.log('Elf : '+message);
+
+            
+          if (message.includes("Jean")){
+            web_socket.clients.forEach( (client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send('READYYIUYUYUY');
+            }
+            });
+          }
+
+          if (message.includes("mov:")){
+            move_elf = message;
+            has_played_elf = true;
+          }
+        
+          if (has_played_dude && has_played_elf){
+           
+            has_played_dude = false;
+            has_played_elf = false;
+
+            web_socket.clients.forEach( (client) => {
+              if (client.readyState === WebSocket.OPEN) {
+                client.send({'turn': turn_nb, 'dude_mov': move_dude, 'elf_mov': move_elf});
+              }
+              });
+          }
+        });
+  }*/
+
 });
+
+
 
 
 // Interval qui tourne en boucle et qui verifie que toute les clients sont encore la
